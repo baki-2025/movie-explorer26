@@ -92,6 +92,39 @@
   z-index: 2;
 }
 
+/* Favorite Button */
+.movie-card__favorite-btn {
+  position: absolute;
+  top: var(--space-sm);
+  left: var(--space-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: rgba(10, 10, 26, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--color-border);
+  color: #fff;
+  cursor: pointer;
+  z-index: 4;
+  transition: all var(--transition-fast);
+  font-size: 0.85rem;
+}
+
+.movie-card__favorite-btn:hover {
+  transform: scale(1.15);
+  background: rgba(124, 92, 252, 0.35);
+  border-color: var(--color-accent-primary);
+}
+
+.movie-card__favorite-btn--active {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.6);
+}
+
 .movie-card__star {
   font-size: 0.75rem;
 }

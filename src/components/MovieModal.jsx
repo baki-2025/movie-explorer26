@@ -10,7 +10,7 @@ function stripHtml(html) {
   return tmp.textContent || tmp.innerText || ''
 }
 
-function MovieModal({ show, onClose }) {
+function MovieModal({ show, onClose, isFavorite, onToggleFavorite }) {
   const modalRef = useRef(null)
 
   // Close on Escape key
@@ -137,6 +137,16 @@ function MovieModal({ show, onClose }) {
 
           {/* Actions */}
           <div className="modal__actions">
+            {onToggleFavorite && (
+              <button
+                type="button"
+                className={`modal__action-btn ${isFavorite ? 'modal__action-btn--fav-active' : 'modal__action-btn--fav'}`}
+                onClick={() => onToggleFavorite(show)}
+                id="modal-toggle-fav"
+              >
+                {isFavorite ? '❤️ In Favorites' : '🤍 Add to Favorites'}
+              </button>
+            )}
             {officialSite && (
               <a
                 href={officialSite}

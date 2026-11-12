@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import MovieCard from '../components/MovieCard.jsx'
 import MovieModal from '../components/MovieModal.jsx'
 import Loader from '../components/Loader.jsx'
@@ -6,14 +6,56 @@ import './MoviesPage.css'
 
 const BASE_URL = 'https://api.tvmaze.com'
 
+const GENRES = [
+  'All',
+  'Drama',
+  'Action',
+  'Comedy',
+  'Science-Fiction',
+  'Thriller',
+  'Horror',
+  'Romance',
+  'Crime',
+  'Adventure',
+  'Mystery',
+  'Animation',
+]
+
 function MoviesPage() {
   const [shows, setShows] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [selectedShow, setSelectedShow] = useState(null)
+  const [selectedGenre, setSelectedGenre] = useState('All')
+  const [sortBy, setSortBy] = useState('rating-desc')
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false)
   const [searchTimeout, setSearchTimeout] = useState(null)
   const searchInputRef = useRef(null)
+
+  // Load favorites from localStorage
+  const [favorites, setFavorites] = useState(() => {
+    try {
+      const saved = localStorage.getItem('movie_explorer26_favorites')
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  const toggleFavorite = useCallback((show) => {
+    setFavorites(prev => {
+      const next = prev.includes(show.id)
+        ? prev.filter(id => id !== show.id)
+        : [...prev, show.id]
+      try {
+        localStorage.setItem('movie_explorer26_favorites', JSON.stringify(next))
+      } catch (e) {
+        console.error(e)
+      }
+      return next
+    })
+  }, [])
 
   const fetchShowsData = useCallback(async () => {
     setLoading(true)
@@ -108,6 +150,15 @@ function MoviesPage() {
     }
   }
 
+  const handleResetFilters = () => {
+    setSelectedGenre('All')
+    setSortBy('rating-desc')
+    setShowOnlyFavorites(false)
+    if (searchQuery) {
+      handleClearSearch()
+    }
+  }
+
   const handleSeeDetails = (show) => {
     setSelectedShow(show)
   }
@@ -115,6 +166,42 @@ function MoviesPage() {
   const handleCloseModal = () => {
     setSelectedShow(null)
   }
+
+  // Filter & sort shows
+  const displayedShows = useMemo(() => {
+    let result = [...shows]
+
+    if (showOnlyFavorites) {
+      result = result.filter(s => favorites.includes(s.id))
+    }
+
+    if (selectedGenre !== 'All') {
+      result = result.filter(s => s.genres && s.genres.includes(selectedGenre))
+    }
+
+    result.sort((a, b) => {
+      if (sortBy === 'rating-desc') {
+        return (b.rating?.average || 0) - (a.rating?.average || 0)
+      }
+      if (sortBy === 'title-asc') {
+        return (a.name || '').localeCompare(b.name || '')
+      }
+      if (sortBy === 'title-desc') {
+        return (b.name || '').localeCompare(a.name || '')
+      }
+      if (sortBy === 'year-desc') {
+        return (b.premiered || '').localeCompare(a.premiered || '')
+      }
+      if (sortBy === 'year-asc') {
+        return (a.premiered || '').localeCompare(b.premiered || '')
+      }
+      return 0
+    })
+
+    return result
+  }, [shows, selectedGenre, sortBy, showOnlyFavorites, favorites])
+
+  const isFiltered = selectedGenre !== 'All' || sortBy !== 'rating-desc' || showOnlyFavorites || Boolean(searchQuery)
 
   return (
     <div className="movies-page" id="movies-page">
@@ -157,13 +244,68 @@ function MoviesPage() {
             )}
           </div>
 
+          {/* Filter & Sort Controls */}
+          <div className="filter-controls" id="filter-controls">
+            <div className="genre-pills" id="genre-pills">
+              {GENRES.map(genre => (
+                <button
+                  key={genre}
+                  type="button"
+                  className={`genre-pill ${selectedGenre === genre ? 'genre-pill--active' : ''}`}
+                  onClick={() => setSelectedGenre(genre)}
+                  id={`genre-pill-${genre.toLowerCase()}`}
+                >
+                  {genre}
+                </button>
+              ))}
+            </div>
+
+            <div className="filter-actions" id="filter-actions">
+              <button
+                type="button"
+                className={`favorites-filter-btn ${showOnlyFavorites ? 'favorites-filter-btn--active' : ''}`}
+                onClick={() => setShowOnlyFavorites(prev => !prev)}
+                id="favorites-toggle-btn"
+              >
+                ❤️ Favorites ({favorites.length})
+              </button>
+
+              <div className="sort-select-wrap">
+                <label htmlFor="sort-select" className="sort-label">Sort:</label>
+                <select
+                  id="sort-select"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="sort-select"
+                >
+                  <option value="rating-desc">⭐ Top Rated</option>
+                  <option value="title-asc">🔤 Title (A - Z)</option>
+                  <option value="title-desc">🔤 Title (Z - A)</option>
+                  <option value="year-desc">📅 Newest First</option>
+                  <option value="year-asc">📅 Oldest First</option>
+                </select>
+              </div>
+
+              {isFiltered && (
+                <button
+                  type="button"
+                  className="filter-reset-btn"
+                  onClick={handleResetFilters}
+                  id="filter-reset-btn"
+                >
+                  Reset Filters
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Results Count */}
           {!loading && !error && (
             <p className="movies-page__results-count" id="results-count">
-              {searchQuery
-                ? `Found ${shows.length} result${shows.length !== 1 ? 's' : ''} for "${searchQuery}"`
-                : `Showing top ${shows.length} shows`
-              }
+              Showing {displayedShows.length} {displayedShows.length === 1 ? 'title' : 'titles'}
+              {selectedGenre !== 'All' ? ` in ${selectedGenre}` : ''}
+              {showOnlyFavorites ? ' (Favorites)' : ''}
+              {searchQuery ? ` matching "${searchQuery}"` : ''}
             </p>
           )}
         </div>
@@ -174,7 +316,7 @@ function MoviesPage() {
         <div className="movies-page__container">
           {loading ? (
             <Loader text={searchQuery ? 'Searching...' : 'Loading movies...'} />
-          ) : error && shows.length === 0 ? (
+          ) : error && displayedShows.length === 0 ? (
             <div className="movies-page__error" id="error-message">
               <div className="movies-page__error-icon">😞</div>
               <p className="movies-page__error-text">{error}</p>
@@ -182,14 +324,30 @@ function MoviesPage() {
                 Try Again
               </button>
             </div>
+          ) : displayedShows.length === 0 ? (
+            <div className="movies-page__error" id="no-results-message">
+              <div className="movies-page__error-icon">🔍</div>
+              <p className="movies-page__error-text">
+                {showOnlyFavorites
+                  ? "You haven't added any favorites yet. Click the heart icon on any movie to save it!"
+                  : `No titles match your active filters.`}
+              </p>
+              {isFiltered && (
+                <button className="movies-page__error-btn" onClick={handleResetFilters}>
+                  Clear Filters
+                </button>
+              )}
+            </div>
           ) : (
             <div className="movies-grid" id="movies-grid">
-              {shows.map((show, index) => (
+              {displayedShows.map((show, index) => (
                 <MovieCard
                   key={show.id}
                   show={show}
                   onSeeDetails={handleSeeDetails}
                   index={index}
+                  isFavorite={favorites.includes(show.id)}
+                  onToggleFavorite={toggleFavorite}
                 />
               ))}
             </div>
@@ -199,7 +357,12 @@ function MoviesPage() {
 
       {/* Interactive Movie Details Modal */}
       {selectedShow && (
-        <MovieModal show={selectedShow} onClose={handleCloseModal} />
+        <MovieModal
+          show={selectedShow}
+          onClose={handleCloseModal}
+          isFavorite={favorites.includes(selectedShow.id)}
+          onToggleFavorite={toggleFavorite}
+        />
       )}
     </div>
   )
