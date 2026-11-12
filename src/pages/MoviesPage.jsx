@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import MovieCard from '../components/MovieCard.jsx'
+import MovieModal from '../components/MovieModal.jsx'
 import Loader from '../components/Loader.jsx'
 import './MoviesPage.css'
 
@@ -10,6 +11,7 @@ function MoviesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [selectedShow, setSelectedShow] = useState(null)
   const [searchTimeout, setSearchTimeout] = useState(null)
   const searchInputRef = useRef(null)
 
@@ -107,7 +109,11 @@ function MoviesPage() {
   }
 
   const handleSeeDetails = (show) => {
-    console.log('Selected show:', show)
+    setSelectedShow(show)
+  }
+
+  const handleCloseModal = () => {
+    setSelectedShow(null)
   }
 
   return (
@@ -190,6 +196,11 @@ function MoviesPage() {
           )}
         </div>
       </section>
+
+      {/* Interactive Movie Details Modal */}
+      {selectedShow && (
+        <MovieModal show={selectedShow} onClose={handleCloseModal} />
+      )}
     </div>
   )
 }
